@@ -1,0 +1,18 @@
+# Local environments and editor state
+.venv/
+__pycache__/
+.pytest_cache/
+tests/.tmp/
+*.py[cod]
+.idea/
+.vscode/
+
+# Data and experiment artifacts
+data/raw/
+data/interim/
+data/processed/
+outputs/
+
+# Local operating-system files
+.DS_Store
+Thumbs.db

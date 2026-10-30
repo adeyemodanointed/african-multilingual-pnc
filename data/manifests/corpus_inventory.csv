@@ -1,0 +1,8 @@
+dataset_id,language,path,format,text_field,domain_field,source_field,split_field,license_field,role,notes
+yor_yankari,yor,data/raw/yor/yankari_train.jsonl,jsonl,text,,source,,,primary_pnc,Original Yoruba text; derive PnC labels during ingestion.
+pcm_clean,pcm,data/raw/pcm/pcm_clean.jsonl,jsonl,raw_text,domain,source_dataset,source_split,license,primary_pnc,Reviewed-status metadata is retained for filtering.
+pcm_domain,pcm,data/raw/pcm/pcm_domain_corpus.csv.gz,csv.gz,Text,Domain,Source,Split (train/dev),License,domain_coverage,Keep separate from the primary PnC corpus until duplicate audit.
+ibo_domain,ibo,data/raw/ibo/ibo_domain_corpus.csv.gz,csv.gz,Text,Domain,Source,Split (train/dev),License,primary_pnc,Igbo PnC source; derive labels during ingestion.
+swa_domain,swa,data/raw/swa/swa_domain_corpus.csv.gz,csv.gz,Text,Domain,Source,Split (train/dev),License,primary_pnc,Swahili PnC source; stream during ingestion.
+kin_multidomain,kin,data/raw/kin/kinyarwanda_multidomain_candidates.csv,csv,raw_text,domain,source_dataset,source_split,license,primary_pnc,"50,711 candidate records; apply review-status and duplicate checks."
+kin_smoke,kin,data/raw/kin/kinyarwanda_data.csv.gz,csv.gz,text,domain,source,Split,license,smoke_only,"10,000-record prototype; do not mix synthetic records into final evaluation."
