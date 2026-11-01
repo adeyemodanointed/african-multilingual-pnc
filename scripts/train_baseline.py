@@ -17,7 +17,14 @@ from tqdm.auto import tqdm
 from transformers import AutoTokenizer, get_linear_schedule_with_warmup
 
 from pnc.model import build_multitask_model
-from pnc.training import chunk_record, f1_from_counts, inverse_sqrt_weights, label_counts, token_classification_counts
+from pnc.training import (
+    chunk_record,
+    f1_from_counts,
+    inverse_sqrt_weights,
+    label_counts,
+    macro_f1_excluding_labels,
+    token_classification_counts,
+)
 
 
 def read_jsonl(path: Path) -> list[dict[str, object]]:
@@ -90,7 +97,11 @@ def add_counts(destination, incoming) -> None:
 
 
 def summarize_stats(stats):
-    return {key: f1_from_counts(*value) for key, value in stats.items()}
+    punctuation = f1_from_counts(*stats["punctuation"])
+    punctuation["macro_f1_non_o"] = macro_f1_excluding_labels(
+        punctuation["per_class_f1"], punctuation["support"], {0}
+    )
+    return {"punctuation": punctuation, "case": f1_from_counts(*stats["case"])}
 
 
 def evaluate(model, dataloader, device, punctuation_count: int, case_count: int, description: str):
@@ -211,7 +222,7 @@ def main() -> None:
         )
         result = {"epoch": epoch, "train_loss": running_loss / len(loaders["train"]), "dev": dev}
         history.append(result)
-        score = dev["punctuation"]["macro_f1_present"]
+        score = dev["punctuation"]["macro_f1_non_o"]
         print(json.dumps(result))
         if score > best_score:
             best_score = score
@@ -220,7 +231,11 @@ def main() -> None:
     model.load_state_dict(checkpoint["model_state"])
     metrics = {
         "config": config,
-        "run": {"effective_epochs": epochs, "epochs_override": args.epochs},
+        "run": {
+            "effective_epochs": epochs,
+            "epochs_override": args.epochs,
+            "checkpoint_selection_metric": "punctuation.macro_f1_non_o",
+        },
         "device": str(device),
         "train_records": len(raw_splits["train"]),
         "chunk_counts": {split: len(records) for split, records in chunks.items()},

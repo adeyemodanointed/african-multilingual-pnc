@@ -24,3 +24,12 @@ python scripts\train_baseline.py
 ```
 
 Outputs are written under `outputs/afroxlmr_small_baseline/` and remain local.
+
+The best checkpoint is selected by punctuation macro F1 excluding `O` (no punctuation). Before increasing the context length, inspect tokenization coverage with:
+
+```powershell
+$env:PYTHONPATH = "src"
+python scripts\audit_token_lengths.py
+```
+
+The resulting local report is written to `data/interim/token_length_audit.json`.

@@ -1,6 +1,7 @@
 # Local environments and editor state
 .venv/
 .tmp-python/
+.colab-local/
 __pycache__/
 .pytest_cache/
 tests/.tmp/

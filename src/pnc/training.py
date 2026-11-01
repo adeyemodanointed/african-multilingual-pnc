@@ -89,3 +89,13 @@ def f1_from_counts(true_positive: list[int], false_positive: list[int], false_ne
         support.append(tp + fn)
     included = [score for score, count in zip(f1, support, strict=True) if count]
     return {"per_class_f1": f1, "support": support, "macro_f1_present": sum(included) / len(included) if included else 0.0}
+
+
+def macro_f1_excluding_labels(per_class_f1: list[float], support: list[int], excluded_indices: set[int]) -> float:
+    """Compute macro F1 over supported labels other than explicitly excluded ones."""
+    included = [
+        score
+        for index, (score, count) in enumerate(zip(per_class_f1, support, strict=True))
+        if index not in excluded_indices and count
+    ]
+    return sum(included) / len(included) if included else 0.0
