@@ -13,6 +13,7 @@ import torch
 import torch.nn.functional as functional
 from torch.optim import AdamW
 from torch.utils.data import DataLoader, WeightedRandomSampler
+from tqdm.auto import tqdm
 from transformers import AutoTokenizer, get_linear_schedule_with_warmup
 
 from pnc.model import build_multitask_model
@@ -139,7 +140,13 @@ def main() -> None:
     for epoch in range(1, epochs + 1):
         model.train()
         running_loss = 0.0
-        for step, (inputs, punctuation, casing, _) in enumerate(loaders["train"], start=1):
+        progress = tqdm(
+            loaders["train"],
+            desc=f"Epoch {epoch}/{epochs}",
+            unit="batch",
+            dynamic_ncols=True,
+        )
+        for step, (inputs, punctuation, casing, _) in enumerate(progress, start=1):
             inputs = {key: value.to(device) for key, value in inputs.items()}
             punctuation, casing = punctuation.to(device), casing.to(device)
             with torch.autocast(device_type=device.type, enabled=scaler.is_enabled()):
@@ -152,6 +159,12 @@ def main() -> None:
                 scaler.unscale_(optimizer); torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
                 scaler.step(optimizer); scaler.update(); optimizer.zero_grad(set_to_none=True); scheduler.step()
             running_loss += loss.item() * accumulation
+            progress.set_postfix(
+                loss=f"{running_loss / step:.4f}",
+                lr=f"{scheduler.get_last_lr()[0]:.2e}",
+            )
+        progress.close()
+        print(f"Evaluating development split after epoch {epoch}/{epochs}...", flush=True)
         dev = evaluate(model, loaders["dev"], device, len(punct_labels), len(case_labels))
         result = {"epoch": epoch, "train_loss": running_loss / len(loaders["train"]), "dev": dev}
         history.append(result)

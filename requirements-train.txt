@@ -2,3 +2,4 @@ accelerate>=1.0,<2.0
 safetensors>=0.4,<1.0
 sentencepiece>=0.2,<1.0
 transformers>=4.46,<5.0
+tqdm>=4.66,<5.0
