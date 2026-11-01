@@ -29,7 +29,7 @@ def make_collate_fn(tokenizer, punctuation_to_id, case_to_id, max_length: int):
     """Tokenize a complete batch at once and align its word-level labels."""
     def collate(batch):
         encoded = tokenizer(
-            [item["words"] for item in batch],
+            [item["input_words"] for item in batch],
             is_split_into_words=True,
             truncation=True,
             max_length=max_length,

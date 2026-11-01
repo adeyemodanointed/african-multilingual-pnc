@@ -9,9 +9,10 @@ from typing import Iterator
 def chunk_record(record: dict[str, object], word_chunk_size: int) -> Iterator[dict[str, object]]:
     """Split long examples at word boundaries while retaining aligned labels."""
     words = record["words"]
+    input_words = record.get("input_words", [word.lower() for word in words])
     punctuation = record["punctuation_labels"]
     casing = record["case_labels"]
-    if not (len(words) == len(punctuation) == len(casing)):
+    if not (len(words) == len(input_words) == len(punctuation) == len(casing)):
         raise ValueError(f"Misaligned labels for record {record['id']}")
     for start in range(0, len(words), word_chunk_size):
         end = start + word_chunk_size
@@ -19,6 +20,7 @@ def chunk_record(record: dict[str, object], word_chunk_size: int) -> Iterator[di
             "id": f"{record['id']}:{start}",
             "language": record["language"],
             "words": words[start:end],
+            "input_words": input_words[start:end],
             "punctuation_labels": punctuation[start:end],
             "case_labels": casing[start:end],
         }

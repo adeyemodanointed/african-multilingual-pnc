@@ -126,10 +126,12 @@ def prepare_record(record: dict[str, str], min_words: int = 4, max_words: int = 
     if render_text(words, punctuation, casing) != target_text:
         return None, "round_trip_mismatch"
 
+    input_words = [word.lower() for word in words]
     prepared = {
         **record,
         "target_text": target_text,
-        "input_text": " ".join(word.lower() for word in words),
+        "input_text": " ".join(input_words),
+        "input_words": input_words,
         "words": words,
         "punctuation_labels": punctuation,
         "case_labels": casing,

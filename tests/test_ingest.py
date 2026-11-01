@@ -109,6 +109,7 @@ class IngestTests(unittest.TestCase):
 
         self.assertIsNone(reason)
         self.assertEqual(prepared["input_text"], "ẹ káàrọ̀ àwọn ọ̀rẹ́ mi")
+        self.assertEqual(prepared["input_words"], ["ẹ", "káàrọ̀", "àwọn", "ọ̀rẹ́", "mi"])
         self.assertEqual(prepared["punctuation_labels"], ["O", "COMMA", "O", "O", "PERIOD"])
         self.assertEqual(prepared["case_labels"], ["TITLE", "LOWER", "LOWER", "LOWER", "LOWER"])
 

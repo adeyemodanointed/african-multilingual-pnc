@@ -12,6 +12,8 @@ Raw data, models, and generated outputs must not be committed to version control
 
 The first experiment fine-tunes `Davlan/afro-xlmr-small` with one shared encoder and two token-classification heads: punctuation (`O`, comma, period, question, exclamation, colon, semicolon) and word casing (lower, title, upper). It uses language-balanced sampling and focal loss for punctuation because the no-punctuation label dominates.
 
+Each supervised record keeps the reference text unchanged as `target_text`. The model receives only `input_words`: a separately derived lowercase, punctuation-free word sequence. Raw sources and reference targets are never overwritten.
+
 After preparing the supervised data, install the training dependencies and run:
 
 ```powershell
