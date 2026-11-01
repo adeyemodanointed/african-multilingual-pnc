@@ -7,6 +7,7 @@ from pathlib import Path
 from pnc.audit import audit_sources
 from pnc.ingest import CorpusSource, ingest_manifest
 from pnc.quality import select_high_confidence_records
+from pnc.dataset import normalize_reference_text, prepare_record, prepare_records
 
 
 class IngestTests(unittest.TestCase):
@@ -95,3 +96,44 @@ class IngestTests(unittest.TestCase):
         self.assertEqual({language: len(values) for language, values in selected.items()}, {"pcm": 1, "yor": 1})
         self.assertEqual(report["yor"]["missing_initial_capital"], 1)
         self.assertEqual(report["pcm"]["too_short"], 1)
+
+    def test_prepare_record_round_trips_punctuation_and_case(self) -> None:
+        record = {
+            "id": "yor-1",
+            "dataset_id": "yor",
+            "language": "yor",
+            "raw_text": "Ẹ káàrọ̀, àwọn ọ̀rẹ́ mi.",
+        }
+        prepared, reason = prepare_record(record)
+
+        self.assertIsNone(reason)
+        self.assertEqual(prepared["input_text"], "ẹ káàrọ̀ àwọn ọ̀rẹ́ mi")
+        self.assertEqual(prepared["punctuation_labels"], ["O", "COMMA", "O", "O", "PERIOD"])
+        self.assertEqual(prepared["case_labels"], ["TITLE", "LOWER", "LOWER", "LOWER", "LOWER"])
+
+    def test_prepare_records_excludes_embedded_punctuation(self) -> None:
+        records = [
+            {"id": "1", "dataset_id": "pcm", "language": "pcm", "raw_text": "Dis valid example ends well."},
+            {"id": "2", "dataset_id": "pcm", "language": "pcm", "raw_text": "Dis quote has \"punctuation.\""},
+        ]
+        prepared, report = prepare_records(records)
+
+        self.assertEqual(len(prepared), 1)
+        self.assertEqual(report["pcm"]["embedded_or_unsupported_punctuation"], 1)
+
+    def test_prepare_record_preserves_colons_and_semicolons(self) -> None:
+        record = {
+            "id": "yor-2",
+            "dataset_id": "yor",
+            "language": "yor",
+            "raw_text": "Ìròyìn náà: àwọn ènìyàn dé; wọ́n sì jókòó.",
+        }
+        prepared, reason = prepare_record(record)
+
+        self.assertIsNone(reason)
+        self.assertEqual(prepared["punctuation_labels"], ["O", "COLON", "O", "O", "SEMICOLON", "O", "O", "PERIOD"])
+
+    def test_normalization_separates_inline_punctuation_without_breaking_decimals(self) -> None:
+        text = "Ìròyìn:Akọsilẹ.Ọjọ́ 3.14 wà."
+
+        self.assertEqual(normalize_reference_text(text), "Ìròyìn: Akọsilẹ. Ọjọ́ 3.14 wà.")
