@@ -6,6 +6,7 @@ from pathlib import Path
 
 from pnc.audit import audit_sources
 from pnc.ingest import CorpusSource, ingest_manifest
+from pnc.quality import select_high_confidence_records
 
 
 class IngestTests(unittest.TestCase):
@@ -81,3 +82,16 @@ class IngestTests(unittest.TestCase):
         self.assertEqual(summary["yor_source"]["terminal_punctuation_pct"], 66.67)
         self.assertEqual(len(rows), 2)
         self.assertTrue(all(row["language"] == "yor" for row in rows))
+
+    def test_select_high_confidence_records_is_balanced_and_strict(self) -> None:
+        records = [
+            {"id": "1", "dataset_id": "yor", "language": "yor", "raw_text": "Ẹ káàrọ̀ àwọn ọ̀rẹ́ mi."},
+            {"id": "2", "dataset_id": "yor", "language": "yor", "raw_text": "ẹ káàrọ̀ àwọn ọ̀rẹ́ mi."},
+            {"id": "3", "dataset_id": "pcm", "language": "pcm", "raw_text": "Dis one get correct punctuation."},
+            {"id": "4", "dataset_id": "pcm", "language": "pcm", "raw_text": "Too short."},
+        ]
+        selected, report = select_high_confidence_records(records, max_per_language=1, seed=7)
+
+        self.assertEqual({language: len(values) for language, values in selected.items()}, {"pcm": 1, "yor": 1})
+        self.assertEqual(report["yor"]["missing_initial_capital"], 1)
+        self.assertEqual(report["pcm"]["too_short"], 1)
