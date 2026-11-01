@@ -16,7 +16,7 @@ from torch.utils.data import DataLoader, WeightedRandomSampler
 from transformers import AutoTokenizer, get_linear_schedule_with_warmup
 
 from pnc.model import build_multitask_model
-from pnc.training import chunk_record, encode_record, f1_from_counts, inverse_sqrt_weights, label_counts, token_classification_counts
+from pnc.training import chunk_record, f1_from_counts, inverse_sqrt_weights, label_counts, token_classification_counts
 
 
 def read_jsonl(path: Path) -> list[dict[str, object]]:
@@ -24,16 +24,41 @@ def read_jsonl(path: Path) -> list[dict[str, object]]:
         return [json.loads(line) for line in handle if line.strip()]
 
 
-def collate(batch):
-    items = [dict(item) for item in batch]
-    punctuation_sequences = [item.pop("punctuation_labels") for item in items]
-    case_sequences = [item.pop("case_labels") for item in items]
-    languages = [item.pop("language") for item in items]
-    padded = tokenizer.pad(items, padding=True, return_tensors="pt")
-    sequence_length = padded["input_ids"].shape[1]
-    punctuation = torch.tensor([values + [-100] * (sequence_length - len(values)) for values in punctuation_sequences], dtype=torch.long)
-    casing = torch.tensor([values + [-100] * (sequence_length - len(values)) for values in case_sequences], dtype=torch.long)
-    return padded, punctuation, casing, languages
+def make_collate_fn(tokenizer, punctuation_to_id, case_to_id, max_length: int):
+    """Tokenize a complete batch at once and align its word-level labels."""
+    def collate(batch):
+        encoded = tokenizer(
+            [item["words"] for item in batch],
+            is_split_into_words=True,
+            truncation=True,
+            max_length=max_length,
+            padding=True,
+            return_tensors="pt",
+        )
+        punctuation_sequences: list[list[int]] = []
+        case_sequences: list[list[int]] = []
+        for batch_index, item in enumerate(batch):
+            punctuation: list[int] = []
+            casing: list[int] = []
+            previous_word_id = None
+            for word_id in encoded.word_ids(batch_index=batch_index):
+                if word_id is None or word_id == previous_word_id:
+                    punctuation.append(-100)
+                    casing.append(-100)
+                else:
+                    punctuation.append(punctuation_to_id[item["punctuation_labels"][word_id]])
+                    casing.append(case_to_id[item["case_labels"][word_id]])
+                previous_word_id = word_id
+            punctuation_sequences.append(punctuation)
+            case_sequences.append(casing)
+        return (
+            encoded,
+            torch.tensor(punctuation_sequences, dtype=torch.long),
+            torch.tensor(case_sequences, dtype=torch.long),
+            [item["language"] for item in batch],
+        )
+
+    return collate
 
 
 def focal_cross_entropy(logits, labels, weights, gamma: float):
@@ -66,7 +91,6 @@ def evaluate(model, dataloader, device, punctuation_count: int, case_count: int)
 
 
 def main() -> None:
-    global tokenizer
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--config", type=Path, default=Path("configs/afroxlmr_small_baseline.json"))
     parser.add_argument("--data-dir", type=Path, default=Path("data/processed/supervised"))
@@ -83,17 +107,20 @@ def main() -> None:
     punct_to_id = {label: index for index, label in enumerate(punct_labels)}
     case_to_id = {label: index for index, label in enumerate(case_labels)}
     raw_splits = {split: read_jsonl(args.data_dir / f"{split}.jsonl") for split in ("train", "dev", "test")}
-    chunks = {split: [chunk for record in records for chunk in chunk_record(record, config["word_chunk_size"])] for split, records in raw_splits.items()}
+    chunks = {
+        split: [chunk for record in records for chunk in chunk_record(record, config["word_chunk_size"])]
+        for split, records in raw_splits.items()
+    }
     tokenizer = AutoTokenizer.from_pretrained(config["model_name"], use_fast=True, token=False)
-    encoded = {split: [encode_record(tokenizer, record, punct_to_id, case_to_id, config["max_length"]) for record in records] for split, records in chunks.items()}
-    language_counts = Counter(item["language"] for item in encoded["train"])
-    sample_weights = [1 / language_counts[item["language"]] for item in encoded["train"]]
+    collate = make_collate_fn(tokenizer, punct_to_id, case_to_id, config["max_length"])
+    language_counts = Counter(item["language"] for item in chunks["train"])
+    sample_weights = [1 / language_counts[item["language"]] for item in chunks["train"]]
     sampler = WeightedRandomSampler(sample_weights, num_samples=len(sample_weights), replacement=True)
     batch_size = training["batch_size"]
     loaders = {
-        "train": DataLoader(encoded["train"], batch_size=batch_size, sampler=sampler, collate_fn=collate),
-        "dev": DataLoader(encoded["dev"], batch_size=batch_size, shuffle=False, collate_fn=collate),
-        "test": DataLoader(encoded["test"], batch_size=batch_size, shuffle=False, collate_fn=collate),
+        "train": DataLoader(chunks["train"], batch_size=batch_size, sampler=sampler, collate_fn=collate),
+        "dev": DataLoader(chunks["dev"], batch_size=batch_size, shuffle=False, collate_fn=collate),
+        "test": DataLoader(chunks["test"], batch_size=batch_size, shuffle=False, collate_fn=collate),
     }
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model = build_multitask_model(config["model_name"], len(punct_labels), len(case_labels)).to(device)
