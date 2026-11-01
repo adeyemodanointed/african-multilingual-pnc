@@ -2,6 +2,7 @@
 .venv/
 .tmp-python/
 .colab-local/
+colab_bundle_staging/
 multilingual-pnc-colab-bundle.zip
 __pycache__/
 .pytest_cache/
