@@ -76,19 +76,54 @@ def focal_cross_entropy(logits, labels, weights, gamma: float):
     return (weights[labels] * (1 - probability).pow(gamma) * -log_probability).mean()
 
 
+def empty_stats(punctuation_count: int, case_count: int):
+    return {
+        "punctuation": ([0] * punctuation_count, [0] * punctuation_count, [0] * punctuation_count),
+        "case": ([0] * case_count, [0] * case_count, [0] * case_count),
+    }
+
+
+def add_counts(destination, incoming) -> None:
+    for existing, new in zip(destination, incoming, strict=True):
+        for index, value in enumerate(new):
+            existing[index] += value
+
+
+def summarize_stats(stats):
+    return {key: f1_from_counts(*value) for key, value in stats.items()}
+
+
 def evaluate(model, dataloader, device, punctuation_count: int, case_count: int):
     model.eval()
-    stats = {"punctuation": ([0] * punctuation_count, [0] * punctuation_count, [0] * punctuation_count), "case": ([0] * case_count, [0] * case_count, [0] * case_count)}
+    stats = empty_stats(punctuation_count, case_count)
+    language_stats = {}
     with torch.no_grad():
-        for inputs, punctuation, casing, _ in dataloader:
+        for inputs, punctuation, casing, languages in dataloader:
             inputs = {key: value.to(device) for key, value in inputs.items()}
             punctuation_logits, case_logits = model(**inputs)
-            for key, logits, targets, count in (("punctuation", punctuation_logits, punctuation, punctuation_count), ("case", case_logits, casing, case_count)):
-                tp, fp, fn = token_classification_counts(logits.argmax(-1).cpu().flatten().tolist(), targets.flatten().tolist(), count)
-                for destination, incoming in zip(stats[key], (tp, fp, fn), strict=True):
-                    for index, value in enumerate(incoming):
-                        destination[index] += value
-    return {key: f1_from_counts(*value) for key, value in stats.items()}
+            tasks = (
+                ("punctuation", punctuation_logits.argmax(-1).cpu(), punctuation, punctuation_count),
+                ("case", case_logits.argmax(-1).cpu(), casing, case_count),
+            )
+            for key, predictions, targets, count in tasks:
+                add_counts(
+                    stats[key],
+                    token_classification_counts(predictions.flatten().tolist(), targets.flatten().tolist(), count),
+                )
+                for batch_index, language in enumerate(languages):
+                    per_language = language_stats.setdefault(language, empty_stats(punctuation_count, case_count))
+                    add_counts(
+                        per_language[key],
+                        token_classification_counts(
+                            predictions[batch_index].tolist(), targets[batch_index].tolist(), count
+                        ),
+                    )
+    result = summarize_stats(stats)
+    result["by_language"] = {
+        language: summarize_stats(language_stats[language])
+        for language in sorted(language_stats)
+    }
+    return result
 
 
 def main() -> None:
@@ -175,7 +210,15 @@ def main() -> None:
             torch.save({"model_state": model.state_dict(), "config": config}, args.output_dir / "best.pt")
     checkpoint = torch.load(args.output_dir / "best.pt", map_location=device, weights_only=True)
     model.load_state_dict(checkpoint["model_state"])
-    metrics = {"config": config, "device": str(device), "train_records": len(raw_splits["train"]), "chunk_counts": {split: len(records) for split, records in chunks.items()}, "history": history, "test": evaluate(model, loaders["test"], device, len(punct_labels), len(case_labels))}
+    metrics = {
+        "config": config,
+        "run": {"effective_epochs": epochs, "epochs_override": args.epochs},
+        "device": str(device),
+        "train_records": len(raw_splits["train"]),
+        "chunk_counts": {split: len(records) for split, records in chunks.items()},
+        "history": history,
+        "test": evaluate(model, loaders["test"], device, len(punct_labels), len(case_labels)),
+    }
     (args.output_dir / "metrics.json").write_text(json.dumps(metrics, indent=2) + "\n", encoding="utf-8")
     print(json.dumps({"test": metrics["test"]}, indent=2))
 

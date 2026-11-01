@@ -140,6 +140,11 @@ class IngestTests(unittest.TestCase):
 
         self.assertEqual(normalize_reference_text(text), "Ìròyìn: Akọsilẹ. Ọjọ́ 3.14 wà.")
 
+    def test_normalization_replaces_literal_escaped_whitespace(self) -> None:
+        text = r"Ndewo ụwa.\nKedu ka ị mere?"
+
+        self.assertEqual(normalize_reference_text(text), "Ndewo ụwa. Kedu ka ị mere?")
+
     def test_chunking_preserves_word_label_alignment(self) -> None:
         record = {
             "id": "kin-1",

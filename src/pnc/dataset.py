@@ -19,10 +19,12 @@ _PUNCTUATION_TO_LABEL = {
     ";": "SEMICOLON",
 }
 _TRAILING_PUNCTUATION = re.compile(r"([,.:;?!]+)$")
+_LITERAL_ESCAPED_WHITESPACE = re.compile(r"\\[nrt]")
 
 
 def normalize_reference_text(text: str) -> str:
     """Normalize Unicode and whitespace while preserving language-specific diacritics."""
+    text = _LITERAL_ESCAPED_WHITESPACE.sub(" ", text)
     text = " ".join(unicodedata.normalize("NFC", text).split())
     text = re.sub(r"\s+([,.:;?!])", r"\1", text)
     output: list[str] = []
@@ -95,6 +97,7 @@ def render_text(words: list[str], punctuation: list[str], casing: list[str]) -> 
 
 def prepare_record(record: dict[str, str], min_words: int = 4, max_words: int = 160) -> tuple[dict[str, object] | None, str | None]:
     """Derive an exactly reconstructible PnC training record or an exclusion reason."""
+    normalized_literal_escapes = bool(_LITERAL_ESCAPED_WHITESPACE.search(record["raw_text"]))
     target_text = normalize_reference_text(record["raw_text"])
     words: list[str] = []
     punctuation: list[str] = []
@@ -135,6 +138,7 @@ def prepare_record(record: dict[str, str], min_words: int = 4, max_words: int = 
         "words": words,
         "punctuation_labels": punctuation,
         "case_labels": casing,
+        "normalized_literal_escapes": normalized_literal_escapes,
     }
     return prepared, None
 
@@ -163,6 +167,8 @@ def prepare_records(records: list[dict[str, str]], seed: int = 42) -> tuple[list
             counts[reason] += 1
             continue
         prepared["split"] = split_for_record(prepared, seed)
+        if prepared["normalized_literal_escapes"]:
+            counts["literal_escaped_whitespace_normalized"] += 1
         counts[f"split_{prepared['split']}"] += 1
         counts["accepted"] += 1
         accepted.append(prepared)
