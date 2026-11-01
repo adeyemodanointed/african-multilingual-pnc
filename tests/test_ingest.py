@@ -8,6 +8,7 @@ from pnc.audit import audit_sources
 from pnc.ingest import CorpusSource, ingest_manifest
 from pnc.quality import select_high_confidence_records
 from pnc.dataset import normalize_reference_text, prepare_record, prepare_records
+from pnc.training import chunk_record, f1_from_counts, token_classification_counts
 
 
 class IngestTests(unittest.TestCase):
@@ -137,3 +138,23 @@ class IngestTests(unittest.TestCase):
         text = "Ìròyìn:Akọsilẹ.Ọjọ́ 3.14 wà."
 
         self.assertEqual(normalize_reference_text(text), "Ìròyìn: Akọsilẹ. Ọjọ́ 3.14 wà.")
+
+    def test_chunking_preserves_word_label_alignment(self) -> None:
+        record = {
+            "id": "kin-1",
+            "language": "kin",
+            "words": ["A", "B", "C", "D", "E"],
+            "punctuation_labels": ["O", "COMMA", "O", "O", "PERIOD"],
+            "case_labels": ["TITLE", "UPPER", "UPPER", "UPPER", "UPPER"],
+        }
+        chunks = list(chunk_record(record, word_chunk_size=2))
+
+        self.assertEqual([chunk["words"] for chunk in chunks], [["A", "B"], ["C", "D"], ["E"]])
+        self.assertEqual(chunks[-1]["punctuation_labels"], ["PERIOD"])
+
+    def test_metrics_ignore_subword_targets(self) -> None:
+        tp, fp, fn = token_classification_counts([0, 1, 1, 2], [0, -100, 2, 1], label_count=3)
+        metrics = f1_from_counts(tp, fp, fn)
+
+        self.assertEqual(metrics["support"], [1, 1, 1])
+        self.assertEqual(metrics["per_class_f1"], [1.0, 0.0, 0.0])
