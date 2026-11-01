@@ -93,12 +93,13 @@ def summarize_stats(stats):
     return {key: f1_from_counts(*value) for key, value in stats.items()}
 
 
-def evaluate(model, dataloader, device, punctuation_count: int, case_count: int):
+def evaluate(model, dataloader, device, punctuation_count: int, case_count: int, description: str):
     model.eval()
     stats = empty_stats(punctuation_count, case_count)
     language_stats = {}
     with torch.no_grad():
-        for inputs, punctuation, casing, languages in dataloader:
+        progress = tqdm(dataloader, desc=description, unit="batch", dynamic_ncols=True)
+        for inputs, punctuation, casing, languages in progress:
             inputs = {key: value.to(device) for key, value in inputs.items()}
             punctuation_logits, case_logits = model(**inputs)
             tasks = (
@@ -200,7 +201,14 @@ def main() -> None:
             )
         progress.close()
         print(f"Evaluating development split after epoch {epoch}/{epochs}...", flush=True)
-        dev = evaluate(model, loaders["dev"], device, len(punct_labels), len(case_labels))
+        dev = evaluate(
+            model,
+            loaders["dev"],
+            device,
+            len(punct_labels),
+            len(case_labels),
+            f"Development {epoch}/{epochs}",
+        )
         result = {"epoch": epoch, "train_loss": running_loss / len(loaders["train"]), "dev": dev}
         history.append(result)
         score = dev["punctuation"]["macro_f1_present"]
@@ -217,7 +225,14 @@ def main() -> None:
         "train_records": len(raw_splits["train"]),
         "chunk_counts": {split: len(records) for split, records in chunks.items()},
         "history": history,
-        "test": evaluate(model, loaders["test"], device, len(punct_labels), len(case_labels)),
+        "test": evaluate(
+            model,
+            loaders["test"],
+            device,
+            len(punct_labels),
+            len(case_labels),
+            "Test evaluation",
+        ),
     }
     (args.output_dir / "metrics.json").write_text(json.dumps(metrics, indent=2) + "\n", encoding="utf-8")
     print(json.dumps({"test": metrics["test"]}, indent=2))
