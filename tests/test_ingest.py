@@ -8,7 +8,7 @@ from pnc.audit import audit_sources
 from pnc.ingest import CorpusSource, ingest_manifest
 from pnc.quality import select_high_confidence_records
 from pnc.dataset import normalize_reference_text, prepare_record, prepare_records
-from pnc.training import chunk_record, f1_from_counts, token_classification_counts
+from pnc.training import chunk_record, chunk_record_to_token_limit, f1_from_counts, token_classification_counts
 
 
 class IngestTests(unittest.TestCase):
@@ -157,6 +157,34 @@ class IngestTests(unittest.TestCase):
 
         self.assertEqual([chunk["words"] for chunk in chunks], [["A", "B"], ["C", "D"], ["E"]])
         self.assertEqual(chunks[-1]["punctuation_labels"], ["PERIOD"])
+
+    def test_token_aware_chunking_respects_budget(self) -> None:
+        class FixtureEncoding(dict):
+            def __init__(self, word_ids):
+                super().__init__(input_ids=list(range(len(word_ids))))
+                self._word_ids = word_ids
+
+            def word_ids(self):
+                return self._word_ids
+
+        class FixtureTokenizer:
+            def __call__(self, words, **_):
+                word_ids = [None]
+                for index, word in enumerate(words):
+                    word_ids.extend([index] * len(word))
+                return FixtureEncoding(word_ids + [None])
+
+        record = {
+            "id": "pcm-1",
+            "language": "pcm",
+            "words": ["aa", "bb", "c"],
+            "input_words": ["aa", "bb", "c"],
+            "punctuation_labels": ["O", "O", "PERIOD"],
+            "case_labels": ["LOWER", "LOWER", "LOWER"],
+        }
+        chunks = list(chunk_record_to_token_limit(record, FixtureTokenizer(), max_length=5))
+
+        self.assertEqual([chunk["input_words"] for chunk in chunks], [["aa"], ["bb", "c"]])
 
     def test_metrics_ignore_subword_targets(self) -> None:
         tp, fp, fn = token_classification_counts([0, 1, 1, 2], [0, -100, 2, 1], label_count=3)

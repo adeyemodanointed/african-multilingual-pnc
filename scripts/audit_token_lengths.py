@@ -10,7 +10,7 @@ from pathlib import Path
 
 from transformers import AutoTokenizer
 
-from pnc.training import chunk_record
+from pnc.training import chunk_record_to_token_limit
 
 
 def read_jsonl(path: Path) -> list[dict[str, object]]:
@@ -25,11 +25,13 @@ def percentile(values: list[int], percent: int) -> int:
     return sorted(values)[index]
 
 
-def summarize(lengths: list[int], max_length: int) -> dict[str, int | float]:
+def summarize(lengths: list[int], max_length: int, source_records: int) -> dict[str, int | float]:
     return {
+        "source_records": source_records,
         "chunks": len(lengths),
-        "truncated_chunks": sum(length > max_length for length in lengths),
-        "truncated_pct": round(100 * sum(length > max_length for length in lengths) / len(lengths), 2) if lengths else 0.0,
+        "additional_chunks": len(lengths) - source_records,
+        "over_budget_chunks": sum(length > max_length for length in lengths),
+        "over_budget_pct": round(100 * sum(length > max_length for length in lengths) / len(lengths), 2) if lengths else 0.0,
         "p50": percentile(lengths, 50),
         "p90": percentile(lengths, 90),
         "p95": percentile(lengths, 95),
@@ -51,12 +53,16 @@ def main() -> None:
     by_split: dict[str, dict[str, list[int]]] = {}
 
     for split in ("train", "dev", "test"):
+        records = read_jsonl(args.data_dir / f"{split}.jsonl")
         chunks = [
             chunk
-            for record in read_jsonl(args.data_dir / f"{split}.jsonl")
-            for chunk in chunk_record(record, config["word_chunk_size"])
+            for record in records
+            for chunk in chunk_record_to_token_limit(record, tokenizer, max_length)
         ]
         lengths: dict[str, list[int]] = defaultdict(list)
+        source_counts: dict[str, int] = defaultdict(int)
+        for record in records:
+            source_counts[str(record["language"])] += 1
         for start in range(0, len(chunks), args.batch_size):
             batch = chunks[start : start + args.batch_size]
             encoded = tokenizer(
@@ -69,7 +75,7 @@ def main() -> None:
                 lengths["all"].append(len(input_ids))
                 lengths[str(item["language"])].append(len(input_ids))
         by_split[split] = {
-            language: summarize(values, max_length)
+            language: summarize(values, max_length, len(records) if language == "all" else source_counts[language])
             for language, values in sorted(lengths.items())
         }
         print(f"Audited {split}: {len(chunks):,} chunks")

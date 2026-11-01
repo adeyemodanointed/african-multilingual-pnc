@@ -18,7 +18,7 @@ from transformers import AutoTokenizer, get_linear_schedule_with_warmup
 
 from pnc.model import build_multitask_model
 from pnc.training import (
-    chunk_record,
+    chunk_record_to_token_limit,
     f1_from_counts,
     inverse_sqrt_weights,
     label_counts,
@@ -38,11 +38,12 @@ def make_collate_fn(tokenizer, punctuation_to_id, case_to_id, max_length: int):
         encoded = tokenizer(
             [item["input_words"] for item in batch],
             is_split_into_words=True,
-            truncation=True,
-            max_length=max_length,
+            truncation=False,
             padding=True,
             return_tensors="pt",
         )
+        if encoded["input_ids"].shape[1] > max_length:
+            raise ValueError(f"Token-aware chunking failed: batch length exceeds {max_length}")
         punctuation_sequences: list[list[int]] = []
         case_sequences: list[list[int]] = []
         for batch_index, item in enumerate(batch):
@@ -155,11 +156,15 @@ def main() -> None:
     punct_to_id = {label: index for index, label in enumerate(punct_labels)}
     case_to_id = {label: index for index, label in enumerate(case_labels)}
     raw_splits = {split: read_jsonl(args.data_dir / f"{split}.jsonl") for split in ("train", "dev", "test")}
+    tokenizer = AutoTokenizer.from_pretrained(config["model_name"], use_fast=True, token=False)
     chunks = {
-        split: [chunk for record in records for chunk in chunk_record(record, config["word_chunk_size"])]
+        split: [
+            chunk
+            for record in records
+            for chunk in chunk_record_to_token_limit(record, tokenizer, config["max_length"])
+        ]
         for split, records in raw_splits.items()
     }
-    tokenizer = AutoTokenizer.from_pretrained(config["model_name"], use_fast=True, token=False)
     collate = make_collate_fn(tokenizer, punct_to_id, case_to_id, config["max_length"])
     language_counts = Counter(item["language"] for item in chunks["train"])
     sample_weights = [1 / language_counts[item["language"]] for item in chunks["train"]]

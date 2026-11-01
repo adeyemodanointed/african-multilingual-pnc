@@ -25,7 +25,7 @@ python scripts\train_baseline.py
 
 Outputs are written under `outputs/afroxlmr_small_baseline/` and remain local.
 
-The best checkpoint is selected by punctuation macro F1 excluding `O` (no punctuation). Before increasing the context length, inspect tokenization coverage with:
+The best checkpoint is selected by punctuation macro F1 excluding `O` (no punctuation). Training uses token-aware, word-boundary chunking so every chunk fits the configured token limit without dropping labels. Before increasing the context length, inspect the resulting segmentation with:
 
 ```powershell
 $env:PYTHONPATH = "src"

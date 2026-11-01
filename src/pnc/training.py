@@ -26,6 +26,47 @@ def chunk_record(record: dict[str, object], word_chunk_size: int) -> Iterator[di
         }
 
 
+def chunk_record_to_token_limit(record: dict[str, object], tokenizer, max_length: int) -> Iterator[dict[str, object]]:
+    """Split a record at word boundaries without exceeding the tokenizer budget."""
+    words = record["words"]
+    input_words = record.get("input_words", [word.lower() for word in words])
+    punctuation = record["punctuation_labels"]
+    casing = record["case_labels"]
+    if not (len(words) == len(input_words) == len(punctuation) == len(casing)):
+        raise ValueError(f"Misaligned labels for record {record['id']}")
+
+    full_encoding = tokenizer(input_words, is_split_into_words=True, truncation=False)
+    word_piece_counts = [0] * len(words)
+    special_tokens = 0
+    for word_id in full_encoding.word_ids():
+        if word_id is None:
+            special_tokens += 1
+        else:
+            word_piece_counts[word_id] += 1
+
+    budget = max_length - special_tokens
+    if budget <= 0:
+        raise ValueError(f"max_length {max_length} cannot accommodate special tokens")
+    start = 0
+    while start < len(words):
+        end = start
+        used_pieces = 0
+        while end < len(words) and used_pieces + word_piece_counts[end] <= budget:
+            used_pieces += word_piece_counts[end]
+            end += 1
+        if end == start:
+            raise ValueError(f"Word at index {start} in record {record['id']} exceeds token budget {max_length}")
+        yield {
+            "id": f"{record['id']}:{start}",
+            "language": record["language"],
+            "words": words[start:end],
+            "input_words": input_words[start:end],
+            "punctuation_labels": punctuation[start:end],
+            "case_labels": casing[start:end],
+        }
+        start = end
+
+
 def encode_record(tokenizer, record: dict[str, object], punctuation_to_id: dict[str, int], case_to_id: dict[str, int], max_length: int):
     """Align word-level targets to first subword tokens; continuation tokens ignore loss."""
     encoded = tokenizer(
