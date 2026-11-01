@@ -4,7 +4,8 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from pnc.ingest import ingest_manifest
+from pnc.audit import audit_sources
+from pnc.ingest import CorpusSource, ingest_manifest
 
 
 class IngestTests(unittest.TestCase):
@@ -46,3 +47,37 @@ class IngestTests(unittest.TestCase):
             [(row["language"], row["raw_text"]) for row in rows],
             [("yor", "Ẹ káàrọ̀."), ("ibo", "Ndewo ụwa.")],
         )
+
+    def test_audit_selects_deterministic_review_rows(self) -> None:
+        scratch_root = Path(__file__).parent / ".tmp"
+        scratch_root.mkdir(exist_ok=True)
+        with tempfile.TemporaryDirectory(dir=scratch_root) as temporary_directory:
+            root = Path(temporary_directory)
+            source_path = root / "data/raw/yor/source.jsonl"
+            source_path.parent.mkdir(parents=True)
+            source_path.write_text(
+                "\n".join(
+                    json.dumps({"text": text, "source": "fixture"})
+                    for text in ["Àkọ́kọ́.", "ẹlẹ́ẹ̀kejì", "Ẹlẹ́ẹ̀kẹta!"]
+                ) + "\n",
+                encoding="utf-8",
+            )
+            source = CorpusSource(
+                dataset_id="yor_source",
+                language="yor",
+                path="data/raw/yor/source.jsonl",
+                format="jsonl",
+                text_field="text",
+                domain_field="",
+                source_field="source",
+                split_field="",
+                license_field="",
+                role="primary_pnc",
+                notes="fixture",
+            )
+            summary, rows = audit_sources([source], root, sample_size=2, seed=7)
+
+        self.assertEqual(summary["yor_source"]["records"], 3)
+        self.assertEqual(summary["yor_source"]["terminal_punctuation_pct"], 66.67)
+        self.assertEqual(len(rows), 2)
+        self.assertTrue(all(row["language"] == "yor" for row in rows))
