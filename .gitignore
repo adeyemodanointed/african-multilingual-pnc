@@ -4,6 +4,7 @@
 .colab-local/
 colab_bundle_staging/
 multilingual-pnc-colab-bundle.zip
+multilingual-pnc-expanded-v1-colab.zip
 __pycache__/
 .pytest_cache/
 tests/.tmp/
