@@ -45,3 +45,11 @@ python scripts\prepare_supervised.py --input data\processed\high_confidence_cand
 ```
 
 This preserves the original candidate file and supervised splits. The parser also safely retains closing quotes and brackets while assigning punctuation labels; ambiguous mixed-casing and combined-punctuation cases remain excluded.
+
+For the all-language expansion, use `configs/selection_all_languages_expanded.json`. It increases Igbo, Kinyarwanda, and Swahili to 20,000 candidates each, while selecting all available strict Yoruba and Pidgin candidates:
+
+```powershell
+$env:PYTHONPATH = "src"
+python scripts\select_high_confidence.py --limits-json configs\selection_all_languages_expanded.json --output data\processed\high_confidence_candidates_expanded_v1.jsonl --report data\interim\high_confidence_selection_expanded_v1.json
+python scripts\prepare_supervised.py --input data\processed\high_confidence_candidates_expanded_v1.jsonl --output-dir data\processed\supervised_expanded_v1 --report data\interim\supervised_expanded_v1.json
+```
