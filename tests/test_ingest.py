@@ -98,6 +98,15 @@ class IngestTests(unittest.TestCase):
         self.assertEqual(report["yor"]["missing_initial_capital"], 1)
         self.assertEqual(report["pcm"]["too_short"], 1)
 
+    def test_select_high_confidence_records_supports_language_limits(self) -> None:
+        records = [
+            {"id": str(index), "dataset_id": "yor", "language": "yor", "raw_text": f"Ẹ káàrọ̀ àwọn ọ̀rẹ́ mi nọmba {index}."}
+            for index in range(3)
+        ]
+        selected, _ = select_high_confidence_records(records, max_per_language={"yor": 2})
+
+        self.assertEqual(len(selected["yor"]), 2)
+
     def test_prepare_record_round_trips_punctuation_and_case(self) -> None:
         record = {
             "id": "yor-1",
@@ -134,6 +143,21 @@ class IngestTests(unittest.TestCase):
 
         self.assertIsNone(reason)
         self.assertEqual(prepared["punctuation_labels"], ["O", "COLON", "O", "O", "SEMICOLON", "O", "O", "PERIOD"])
+
+    def test_prepare_record_preserves_closing_quotes_after_punctuation(self) -> None:
+        record = {
+            "id": "yor-quote",
+            "dataset_id": "yor",
+            "language": "yor",
+            "raw_text": 'Ó sọ pé "Àwọn ọmọ náà dé."',
+        }
+        prepared, reason = prepare_record(record)
+
+        self.assertIsNone(reason)
+        self.assertEqual(prepared["target_text"], record["raw_text"])
+        self.assertEqual(prepared["input_words"][-1], 'dé"')
+        self.assertEqual(prepared["post_punctuation"][-1], '"')
+        self.assertEqual(prepared["punctuation_labels"][-1], "PERIOD")
 
     def test_normalization_separates_inline_punctuation_without_breaking_decimals(self) -> None:
         text = "Ìròyìn:Akọsilẹ.Ọjọ́ 3.14 wà."

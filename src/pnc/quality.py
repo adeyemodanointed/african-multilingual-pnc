@@ -8,6 +8,7 @@ import re
 import unicodedata
 from collections import Counter, defaultdict
 from collections.abc import Iterable
+from typing import Mapping
 
 
 _WORD_PATTERN = re.compile(r"\S+")
@@ -45,17 +46,25 @@ def _rank(record: dict[str, str], seed: int) -> int:
 
 def select_high_confidence_records(
     records: Iterable[dict[str, str]],
-    max_per_language: int = 10_000,
+    max_per_language: int | Mapping[str, int] = 10_000,
     candidate_multiplier: int = 2,
     min_words: int = 4,
     max_words: int = 160,
     seed: int = 42,
 ) -> tuple[dict[str, list[dict[str, str]]], dict[str, dict[str, object]]]:
     """Select balanced deterministic candidates without retaining the full corpus in memory."""
-    if max_per_language < 1 or candidate_multiplier < 1:
+    if candidate_multiplier < 1:
         raise ValueError("Selection limits must be positive.")
 
-    capacity = max_per_language * candidate_multiplier
+    def limit_for(language: str) -> int:
+        if isinstance(max_per_language, int):
+            limit = max_per_language
+        else:
+            limit = max_per_language.get(language, max_per_language.get("default", 10_000))
+        if limit < 1:
+            raise ValueError(f"Selection limit for {language} must be positive.")
+        return limit
+
     heaps: dict[str, list[tuple[int, str, dict[str, str]]]] = defaultdict(list)
     audit: dict[str, Counter[str]] = defaultdict(Counter)
 
@@ -70,6 +79,7 @@ def select_high_confidence_records(
         rank = _rank(record, seed)
         candidate = (-rank, record["id"], record)
         heap = heaps[language]
+        capacity = limit_for(language) * candidate_multiplier
         if len(heap) < capacity:
             heapq.heappush(heap, candidate)
         elif rank < -heap[0][0]:
@@ -88,7 +98,7 @@ def select_high_confidence_records(
                 continue
             seen_text.add(key)
             records_for_language.append(record)
-            if len(records_for_language) == max_per_language:
+            if len(records_for_language) == limit_for(language):
                 break
         counts["selected"] = len(records_for_language)
         selected[language] = records_for_language

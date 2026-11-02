@@ -33,3 +33,15 @@ python scripts\audit_token_lengths.py
 ```
 
 The resulting local report is written to `data/interim/token_length_audit.json`.
+
+## Versioned data expansion
+
+The first baseline uses a 10,000-candidate cap per language. To expand Yoruba without overwriting that baseline, select all available strict Yoruba candidates and write a separate supervised dataset:
+
+```powershell
+$env:PYTHONPATH = "src"
+python scripts\select_high_confidence.py --limits-json configs\selection_yoruba_expanded.json --output data\processed\high_confidence_candidates_yoruba_expanded.jsonl --report data\interim\high_confidence_selection_yoruba_expanded.json
+python scripts\prepare_supervised.py --input data\processed\high_confidence_candidates_yoruba_expanded.jsonl --output-dir data\processed\supervised_yoruba_expanded --report data\interim\supervised_yoruba_expanded.json
+```
+
+This preserves the original candidate file and supervised splits. The parser also safely retains closing quotes and brackets while assigning punctuation labels; ambiguous mixed-casing and combined-punctuation cases remain excluded.

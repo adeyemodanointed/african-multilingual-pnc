@@ -12,7 +12,8 @@ def chunk_record(record: dict[str, object], word_chunk_size: int) -> Iterator[di
     input_words = record.get("input_words", [word.lower() for word in words])
     punctuation = record["punctuation_labels"]
     casing = record["case_labels"]
-    if not (len(words) == len(input_words) == len(punctuation) == len(casing)):
+    post_punctuation = record.get("post_punctuation", [""] * len(words))
+    if not (len(words) == len(input_words) == len(punctuation) == len(casing) == len(post_punctuation)):
         raise ValueError(f"Misaligned labels for record {record['id']}")
     for start in range(0, len(words), word_chunk_size):
         end = start + word_chunk_size
@@ -23,6 +24,7 @@ def chunk_record(record: dict[str, object], word_chunk_size: int) -> Iterator[di
             "input_words": input_words[start:end],
             "punctuation_labels": punctuation[start:end],
             "case_labels": casing[start:end],
+            "post_punctuation": post_punctuation[start:end],
         }
 
 
@@ -32,7 +34,8 @@ def chunk_record_to_token_limit(record: dict[str, object], tokenizer, max_length
     input_words = record.get("input_words", [word.lower() for word in words])
     punctuation = record["punctuation_labels"]
     casing = record["case_labels"]
-    if not (len(words) == len(input_words) == len(punctuation) == len(casing)):
+    post_punctuation = record.get("post_punctuation", [""] * len(words))
+    if not (len(words) == len(input_words) == len(punctuation) == len(casing) == len(post_punctuation)):
         raise ValueError(f"Misaligned labels for record {record['id']}")
 
     full_encoding = tokenizer(input_words, is_split_into_words=True, truncation=False)
@@ -63,6 +66,7 @@ def chunk_record_to_token_limit(record: dict[str, object], tokenizer, max_length
             "input_words": input_words[start:end],
             "punctuation_labels": punctuation[start:end],
             "case_labels": casing[start:end],
+            "post_punctuation": post_punctuation[start:end],
         }
         start = end
 

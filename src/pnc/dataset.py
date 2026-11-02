@@ -20,6 +20,7 @@ _PUNCTUATION_TO_LABEL = {
 }
 _TRAILING_PUNCTUATION = re.compile(r"([,.:;?!]+)$")
 _LITERAL_ESCAPED_WHITESPACE = re.compile(r"\\[nrt]")
+_CLOSING_WRAPPERS = frozenset("'\"”’)]}")
 
 
 def normalize_reference_text(text: str) -> str:
@@ -79,7 +80,9 @@ def punctuation_label(suffix: str) -> str:
     return _PUNCTUATION_TO_LABEL[suffix[-1]]
 
 
-def render_text(words: list[str], punctuation: list[str], casing: list[str]) -> str:
+def render_text(
+    words: list[str], punctuation: list[str], casing: list[str], post_punctuation: list[str] | None = None
+) -> str:
     label_to_character = {
         "O": "",
         "COMMA": ",",
@@ -89,9 +92,10 @@ def render_text(words: list[str], punctuation: list[str], casing: list[str]) -> 
         "COLON": ":",
         "SEMICOLON": ";",
     }
+    post_punctuation = post_punctuation or [""] * len(words)
     return " ".join(
-        apply_case(word, case) + label_to_character[label]
-        for word, label, case in zip(words, punctuation, casing, strict=True)
+        apply_case(word, case) + label_to_character[label] + wrapper
+        for word, label, case, wrapper in zip(words, punctuation, casing, post_punctuation, strict=True)
     )
 
 
@@ -102,11 +106,17 @@ def prepare_record(record: dict[str, str], min_words: int = 4, max_words: int = 
     words: list[str] = []
     punctuation: list[str] = []
     casing: list[str] = []
+    post_punctuation: list[str] = []
 
     for token in target_text.split():
-        match = _TRAILING_PUNCTUATION.search(token)
+        wrappers: list[str] = []
+        body = token
+        while body and body[-1] in _CLOSING_WRAPPERS:
+            wrappers.append(body[-1])
+            body = body[:-1]
+        match = _TRAILING_PUNCTUATION.search(body)
         suffix = match.group(1) if match else ""
-        word = token[: -len(suffix)] if suffix else token
+        word = body[: -len(suffix)] if suffix else body
         if not word:
             return None, "punctuation_only_token"
         if any(character in word for character in ",.?!;:"):
@@ -121,15 +131,16 @@ def prepare_record(record: dict[str, str], min_words: int = 4, max_words: int = 
         words.append(word)
         punctuation.append(label)
         casing.append(case)
+        post_punctuation.append("".join(reversed(wrappers)))
 
     if len(words) < min_words:
         return None, "too_short_after_tokenization"
     if len(words) > max_words:
         return None, "too_long_after_tokenization"
-    if render_text(words, punctuation, casing) != target_text:
+    if render_text(words, punctuation, casing, post_punctuation) != target_text:
         return None, "round_trip_mismatch"
 
-    input_words = [word.lower() for word in words]
+    input_words = [(word + wrapper).lower() for word, wrapper in zip(words, post_punctuation, strict=True)]
     prepared = {
         **record,
         "target_text": target_text,
@@ -138,6 +149,7 @@ def prepare_record(record: dict[str, str], min_words: int = 4, max_words: int = 
         "words": words,
         "punctuation_labels": punctuation,
         "case_labels": casing,
+        "post_punctuation": post_punctuation,
         "normalized_literal_escapes": normalized_literal_escapes,
     }
     return prepared, None

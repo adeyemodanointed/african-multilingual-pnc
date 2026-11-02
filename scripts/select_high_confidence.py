@@ -24,14 +24,20 @@ def main() -> None:
     parser.add_argument("--output", type=Path, default=Path("data/processed/high_confidence_candidates.jsonl"))
     parser.add_argument("--report", type=Path, default=Path("data/interim/high_confidence_selection.json"))
     parser.add_argument("--max-per-language", type=int, default=10_000)
+    parser.add_argument(
+        "--limits-json",
+        type=Path,
+        help="Optional JSON object mapping language codes to selection limits.",
+    )
     parser.add_argument("--min-words", type=int, default=4)
     parser.add_argument("--max-words", type=int, default=160)
     parser.add_argument("--seed", type=int, default=42)
     args = parser.parse_args()
 
+    limits = json.loads(args.limits_json.read_text(encoding="utf-8")) if args.limits_json else args.max_per_language
     selected, report = select_high_confidence_records(
         primary_records(args.manifest),
-        max_per_language=args.max_per_language,
+        max_per_language=limits,
         min_words=args.min_words,
         max_words=args.max_words,
         seed=args.seed,
