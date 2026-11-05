@@ -1,55 +1,111 @@
 # Multilingual African Punctuation and Capitalization Restoration
 
-This project starts a fresh, shared PnC pipeline for Yoruba (`yor`), Nigerian Pidgin (`pcm`), Igbo (`ibo`), Swahili (`swa`), and Kinyarwanda (`kin`).
+A shared multilingual system that restores punctuation and word casing for **Igbo**, **Kinyarwanda**, **Nigerian Pidgin**, **Swahili**, and **Yoruba**.
 
-## First build step
+It is one component of an offline spoken information pipeline:
 
-The raw corpus inventory is maintained in `data/manifests/corpus_inventory.csv`. The ingestion pipeline will read each source without altering its original file, normalize it into one common record format, derive labels, and create source-aware splits.
+> speech / ASR transcript → punctuation and capitalization restoration → domain classification → local, grounded answer
 
-Raw data, models, and generated outputs must not be committed to version control.
+![Architecture of the implemented PnC model](docs/figures/pnc-implementation-architecture.svg)
 
-## Baseline
+## Current result
 
-The first experiment fine-tunes `Davlan/afro-xlmr-small` with one shared encoder and two token-classification heads: punctuation (`O`, comma, period, question, exclamation, colon, semicolon) and word casing (lower, title, upper). It uses language-balanced sampling and focal loss for punctuation because the no-punctuation label dominates.
+The completed baseline fine-tunes `Davlan/afro-xlmr-small` on a held-out clean-text restoration task. One shared model learns punctuation and capitalization jointly across all five languages.
 
-Each supervised record keeps the reference text unchanged as `target_text`. The model receives only `input_words`: a separately derived lowercase, punctuation-free word sequence. Raw sources and reference targets are never overwritten.
+| Held-out test metric | Score |
+|---|---:|
+| **Punctuation macro-F1, excluding `O`** | **0.4910** |
+| Punctuation macro-F1, including `O` | 0.5583 |
+| **Capitalization macro-F1** | **0.8741** |
+| Period F1 | 0.8444 |
+| Colon F1 | 0.7202 |
+| Comma F1 | 0.5446 |
+| Question F1 | 0.5259 |
 
-After preparing the supervised data, install the training dependencies and run:
+`O` means *no punctuation after a word*. It is excluded from the primary punctuation score because it is the most common label; otherwise a model predicting no punctuation everywhere would appear artificially strong.
+
+The eight-epoch run selected the best development checkpoint at **epoch 7**. On the same held-out split, it improved the earlier five-epoch result from **0.4768** to **0.4910** punctuation macro-F1 excluding `O`.
+
+> These are clean-text restoration results. Input text is deterministically lower-cased and stripped of punctuation. The project does not yet claim performance on noisy ASR transcripts or a downstream domain-classification improvement.
+
+## Data used in the evaluated baseline
+
+Raw corpora, model checkpoints, and generated predictions are kept local and excluded from version control. The following is the exact data version used for the reported result.
+
+| Stage | Records | What happened |
+|---|---:|---|
+| Raw source records screened | 9,122,890 | Five language-specific corpora were checked for length, casing, terminal punctuation, and control characters. |
+| Strict candidates selected | 87,330 | Deterministic, language-balanced selection; source caps made the first experiment manageable. |
+| Losslessly reconstructible records | 60,085 | Retained only when word, punctuation, and case labels recreated the reference text exactly. |
+| Training records | **48,055** | Used to fine-tune the shared model. |
+| Development records | 5,979 | Used to select the best checkpoint. |
+| Held-out test records | 6,051 | Used for the reported score. |
+
+The test partition produced 6,621 token-aware chunks. The length audit found **zero over-budget chunks**, so labels were not silently dropped through truncation.
+
+### Records by language
+
+| Language | Strict candidates | Accepted supervision | Train | Dev | Test |
+|---|---:|---:|---:|---:|---:|
+| Igbo | 20,000 | 14,297 | 11,460 | 1,437 | 1,400 |
+| Kinyarwanda | 20,000 | 18,809 | 15,037 | 1,881 | 1,891 |
+| Nigerian Pidgin | 10,871 | 5,135 | 4,094 | 530 | 511 |
+| Swahili | 20,000 | 14,514 | 11,628 | 1,409 | 1,477 |
+| Yoruba | 16,459 | 7,330 | 5,836 | 722 | 772 |
+| **Total** | **87,330** | **60,085** | **48,055** | **5,979** | **6,051** |
+
+### Data cleaning and label quality
+
+Raw text is never overwritten. The pipeline normalizes Unicode and whitespace while preserving language-specific characters. A record is accepted only when its labels round-trip exactly to the reference text.
+
+This excludes malformed rows such as unsupported mixed casing, punctuation-only tokens, embedded punctuation that the current label scheme cannot represent safely, and unresolved reconstruction mismatches. The result is a smaller but reproducible quality-controlled training set.
+
+## Implementation
+
+- **Encoder:** `Davlan/afro-xlmr-small`, fine-tuned as one shared multilingual encoder.
+- **Input:** lower-cased, punctuation-free words derived separately from the original reference.
+- **Punctuation head:** `O`, comma, period, question, exclamation, colon, and semicolon.
+- **Capitalization head:** lower, title, and upper case.
+- **Imbalance handling:** focal loss for punctuation.
+- **Language balance:** language-balanced sampling.
+- **Length handling:** token-aware chunks bounded to 128 tokens at word boundaries.
+- **Checkpoint selection:** development punctuation macro-F1 excluding `O`.
+
+## Reproducing the baseline
 
 ```powershell
 conda activate idlf26
 python -m pip install -r requirements-train.txt
 $env:PYTHONPATH = "src"
-python scripts\train_baseline.py
+
+python scripts\train_baseline.py `
+  --config configs\afroxlmr_small_expanded_v1_8epoch.json `
+  --data-dir data\processed\supervised_expanded_v1 `
+  --output-dir outputs\afroxlmr_small_expanded_v1_8epoch
 ```
 
-Outputs are written under `outputs/afroxlmr_small_baseline/` and remain local.
-
-The best checkpoint is selected by punctuation macro F1 excluding `O` (no punctuation). Training uses token-aware, word-boundary chunking so every chunk fits the configured token limit without dropping labels. Before increasing the context length, inspect the resulting segmentation with:
+Audit token-aware segmentation first:
 
 ```powershell
-$env:PYTHONPATH = "src"
-python scripts\audit_token_lengths.py
+python scripts\audit_token_lengths.py `
+  --config configs\afroxlmr_small_expanded_v1_8epoch.json `
+  --data-dir data\processed\supervised_expanded_v1 `
+  --output data\interim\token_length_audit_expanded_v1.json
 ```
 
-The resulting local report is written to `data/interim/token_length_audit.json`.
+## Next data version
 
-## Versioned data expansion
+A larger, provenance-tracked corpus of 11.8 million rows is available locally for the next experiment. The frozen-evaluation expansion workflow will add more high-confidence training data while preserving the current development and test sets. See [RUN_NEW_DATA_EXPANSION.md](RUN_NEW_DATA_EXPANSION.md).
 
-The first baseline uses a 10,000-candidate cap per language. To expand Yoruba without overwriting that baseline, select all available strict Yoruba candidates and write a separate supervised dataset:
+## Limitations
 
-```powershell
-$env:PYTHONPATH = "src"
-python scripts\select_high_confidence.py --limits-json configs\selection_yoruba_expanded.json --output data\processed\high_confidence_candidates_yoruba_expanded.jsonl --report data\interim\high_confidence_selection_yoruba_expanded.json
-python scripts\prepare_supervised.py --input data\processed\high_confidence_candidates_yoruba_expanded.jsonl --output-dir data\processed\supervised_yoruba_expanded --report data\interim\supervised_yoruba_expanded.json
-```
+- This result demonstrates multilingual **text restoration**, not real-ASR robustness.
+- Rare labels remain difficult: exclamation F1 is 0.2447 and semicolon F1 is 0.0664.
+- A direct comparison of raw ASR text versus PnC-restored text is needed before claiming a benefit to domain classification or spoken QA.
+- Raw data, model weights, outputs, and external credentials are intentionally not committed.
 
-This preserves the original candidate file and supervised splits. The parser also safely retains closing quotes and brackets while assigning punctuation labels; ambiguous mixed-casing and combined-punctuation cases remain excluded.
+## References
 
-For the all-language expansion, use `configs/selection_all_languages_expanded.json`. It increases Igbo, Kinyarwanda, and Swahili to 20,000 candidates each, while selecting all available strict Yoruba and Pidgin candidates:
-
-```powershell
-$env:PYTHONPATH = "src"
-python scripts\select_high_confidence.py --limits-json configs\selection_all_languages_expanded.json --output data\processed\high_confidence_candidates_expanded_v1.jsonl --report data\interim\high_confidence_selection_expanded_v1.json
-python scripts\prepare_supervised.py --input data\processed\high_confidence_candidates_expanded_v1.jsonl --output-dir data\processed\supervised_expanded_v1 --report data\interim\supervised_expanded_v1.json
-```
+- Alam, T., Khan, A., & Alam, F. (2020). *Punctuation Restoration using Transformer Models for High- and Low-Resource Languages*.
+- Courtland, M., Faulkner, A., & McElvain, G. (2020). *Efficient Automatic Punctuation Restoration Using Bidirectional Transformers with Robust Inference*.
+- Alabi, J. O., Adelani, D. I., Mosbach, M., & Klakow, D. (2022). *Adapting Pre-trained Language Models to African Languages via Multilingual Adaptive Fine-Tuning*.

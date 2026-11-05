@@ -1,0 +1,18 @@
+{
+  "model_name": "Davlan/afro-xlmr-small",
+  "seed": 42,
+  "max_length": 128,
+  "word_chunk_size": 96,
+  "punctuation_labels": ["O", "COMMA", "PERIOD", "QUESTION", "EXCLAMATION", "COLON", "SEMICOLON"],
+  "case_labels": ["LOWER", "TITLE", "UPPER"],
+  "training": {
+    "epochs": 8,
+    "learning_rate": 3e-5,
+    "batch_size": 4,
+    "gradient_accumulation_steps": 8,
+    "mixed_precision": true,
+    "punctuation_loss": "focal",
+    "focal_gamma": 2.0,
+    "language_balanced_sampling": true
+  }
+}

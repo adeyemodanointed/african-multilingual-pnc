@@ -1,0 +1,87 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900" role="img" aria-labelledby="title desc">
+  <title id="title">Shared AfroXLMR model for multilingual punctuation and capitalization restoration</title>
+  <desc id="desc">Lower-cased, punctuation-free text in five African languages passes through token-aware chunking and an AfroXLMR encoder. Separate punctuation and capitalization heads predict labels that are combined into restored text.</desc>
+  <defs>
+    <style>
+      .bg { fill: #f8fafc; }
+      .title { font: 700 38px Arial, sans-serif; fill: #0f172a; }
+      .subtitle { font: 20px Arial, sans-serif; fill: #475569; }
+      .box-title { font: 700 24px Arial, sans-serif; fill: #0f172a; }
+      .box-copy { font: 18px Arial, sans-serif; fill: #334155; }
+      .small { font: 16px Arial, sans-serif; fill: #334155; }
+      .white-title { font: 700 25px Arial, sans-serif; fill: #ffffff; }
+      .white-copy { font: 18px Arial, sans-serif; fill: #dbeafe; }
+      .label { font: 700 16px Arial, sans-serif; fill: #ffffff; }
+    </style>
+    <marker id="arrow" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto">
+      <path d="M0,0 L12,6 L0,12 Z" fill="#334155"/>
+    </marker>
+  </defs>
+
+  <rect class="bg" width="1600" height="900"/>
+  <text x="90" y="82" class="title">Shared AfroXLMR: Multilingual Punctuation and Capitalization Restoration</text>
+  <text x="90" y="119" class="subtitle">One shared encoder learns punctuation and word case across Igbo, Kinyarwanda, Nigerian Pidgin, Swahili, and Yoruba.</text>
+
+  <rect x="85" y="260" width="250" height="225" rx="18" fill="#dbeafe" stroke="#2563eb" stroke-width="3"/>
+  <text x="210" y="315" text-anchor="middle" class="box-title">Degraded input</text>
+  <text x="210" y="356" text-anchor="middle" class="box-copy">Lower-cased and</text>
+  <text x="210" y="382" text-anchor="middle" class="box-copy">punctuation-free text</text>
+  <text x="210" y="425" text-anchor="middle" class="small">“bawo ni o se wa”</text>
+  <text x="210" y="456" text-anchor="middle" class="small">No target punctuation or</text>
+  <text x="210" y="478" text-anchor="middle" class="small">capitalization is exposed</text>
+
+  <line x1="336" y1="372" x2="398" y2="372" stroke="#334155" stroke-width="4" marker-end="url(#arrow)"/>
+  <rect x="408" y="260" width="230" height="225" rx="18" fill="#e0e7ff" stroke="#4f46e5" stroke-width="3"/>
+  <text x="523" y="315" text-anchor="middle" class="box-title">Tokenizer + chunks</text>
+  <text x="523" y="356" text-anchor="middle" class="box-copy">Subword tokenization</text>
+  <text x="523" y="385" text-anchor="middle" class="box-copy">at word boundaries</text>
+  <text x="523" y="430" text-anchor="middle" class="small">Token-aware chunks</text>
+  <text x="523" y="454" text-anchor="middle" class="small">fit within 128 tokens</text>
+
+  <line x1="639" y1="372" x2="700" y2="372" stroke="#334155" stroke-width="4" marker-end="url(#arrow)"/>
+  <rect x="710" y="194" width="360" height="356" rx="22" fill="#0f4c81"/>
+  <text x="890" y="253" text-anchor="middle" class="white-title">AfroXLMR-small encoder</text>
+  <text x="890" y="289" text-anchor="middle" class="white-copy">Shared multilingual contextual representation</text>
+  <rect x="752" y="333" width="276" height="72" rx="12" fill="#93c5fd"/>
+  <text x="890" y="377" text-anchor="middle" class="box-title">Fine-tuned encoder</text>
+  <rect x="752" y="430" width="276" height="76" rx="12" fill="#bfdbfe"/>
+  <text x="890" y="463" text-anchor="middle" class="box-copy">Language-balanced batches</text>
+  <text x="890" y="488" text-anchor="middle" class="small">Five languages train together</text>
+
+  <line x1="1071" y1="316" x2="1145" y2="316" stroke="#334155" stroke-width="4" marker-end="url(#arrow)"/>
+  <line x1="1071" y1="450" x2="1145" y2="450" stroke="#334155" stroke-width="4" marker-end="url(#arrow)"/>
+
+  <rect x="1155" y="210" width="270" height="210" rx="18" fill="#dcfce7" stroke="#16a34a" stroke-width="3"/>
+  <text x="1290" y="264" text-anchor="middle" class="box-title">Punctuation head</text>
+  <text x="1290" y="305" text-anchor="middle" class="box-copy">One label after</text>
+  <text x="1290" y="331" text-anchor="middle" class="box-copy">every word</text>
+  <text x="1290" y="375" text-anchor="middle" class="small">O · comma · period · question</text>
+  <text x="1290" y="398" text-anchor="middle" class="small">exclamation · colon · semicolon</text>
+
+  <rect x="1155" y="450" width="270" height="180" rx="18" fill="#fef3c7" stroke="#d97706" stroke-width="3"/>
+  <text x="1290" y="504" text-anchor="middle" class="box-title">Capitalization head</text>
+  <text x="1290" y="545" text-anchor="middle" class="box-copy">One case label per word</text>
+  <text x="1290" y="586" text-anchor="middle" class="small">lower · title · upper</text>
+
+  <line x1="1426" y1="316" x2="1470" y2="316" stroke="#334155" stroke-width="4" marker-end="url(#arrow)"/>
+  <line x1="1426" y1="540" x2="1470" y2="540" stroke="#334155" stroke-width="4" marker-end="url(#arrow)"/>
+  <rect x="1480" y="260" width="95" height="330" rx="18" fill="#fff7ed" stroke="#ea580c" stroke-width="3"/>
+  <text x="1528" y="340" text-anchor="middle" class="box-title" transform="rotate(90 1528 340)">Restore</text>
+  <text x="1528" y="467" text-anchor="middle" class="small" transform="rotate(90 1528 467)">readable text</text>
+
+  <rect x="185" y="690" width="1230" height="115" rx="20" fill="#ffffff" stroke="#cbd5e1" stroke-width="2"/>
+  <text x="225" y="735" class="box-title">Training and evaluation</text>
+  <rect x="580" y="714" width="212" height="56" rx="12" fill="#dbeafe"/>
+  <text x="686" y="747" text-anchor="middle" class="box-copy">Focal loss for PnC</text>
+  <rect x="817" y="714" width="220" height="56" rx="12" fill="#e0e7ff"/>
+  <text x="927" y="747" text-anchor="middle" class="box-copy">Best dev checkpoint</text>
+  <rect x="1062" y="714" width="305" height="56" rx="12" fill="#dcfce7"/>
+  <text x="1215" y="747" text-anchor="middle" class="box-copy">Held-out punctuation and case F1</text>
+
+  <rect x="90" y="836" width="245" height="34" rx="17" fill="#93c5fd"/>
+  <text x="212" y="859" text-anchor="middle" class="small">Shared multilingual encoder</text>
+  <rect x="355" y="836" width="250" height="34" rx="17" fill="#dcfce7"/>
+  <text x="480" y="859" text-anchor="middle" class="small">Punctuation prediction head</text>
+  <rect x="625" y="836" width="255" height="34" rx="17" fill="#fef3c7"/>
+  <text x="752" y="859" text-anchor="middle" class="small">Capitalization prediction head</text>
+</svg>
