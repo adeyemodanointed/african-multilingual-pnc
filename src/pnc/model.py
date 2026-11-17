@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 
-def build_multitask_model(model_name: str, punctuation_labels: int, case_labels: int):
+def build_multitask_model(
+    model_name: str, punctuation_labels: int, case_labels: int, *, local_files_only: bool = False
+):
     """Create the model lazily so data utilities do not require PyTorch."""
     import torch.nn as nn
     from transformers import AutoModel
@@ -11,7 +13,7 @@ def build_multitask_model(model_name: str, punctuation_labels: int, case_labels:
     class MultiTaskPnCModel(nn.Module):
         def __init__(self) -> None:
             super().__init__()
-            self.encoder = AutoModel.from_pretrained(model_name, token=False)
+            self.encoder = AutoModel.from_pretrained(model_name, token=False, local_files_only=local_files_only)
             hidden_size = self.encoder.config.hidden_size
             dropout_rate = getattr(self.encoder.config, "hidden_dropout_prob", 0.1)
             self.dropout = nn.Dropout(dropout_rate)

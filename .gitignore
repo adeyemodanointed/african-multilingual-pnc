@@ -17,6 +17,9 @@ data/raw/
 data/interim/
 data/processed/
 outputs/
+EXPERIMENT_PLAN_TO_THURSDAY.md
+.ppt-build/
+deliverables/
 
 # Local operating-system files
 .DS_Store

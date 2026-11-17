@@ -6,3 +6,8 @@ ibo_domain,ibo,data/raw/ibo/ibo_domain_corpus.csv.gz,csv.gz,Text,Domain,Source,S
 swa_domain,swa,data/raw/swa/swa_domain_corpus.csv.gz,csv.gz,Text,Domain,Source,Split (train/dev),License,primary_pnc,Swahili PnC source; stream during ingestion.
 kin_multidomain,kin,data/raw/kin/kinyarwanda_multidomain_candidates.csv,csv,raw_text,domain,source_dataset,source_split,license,primary_pnc,"50,711 candidate records; apply review-status and duplicate checks."
 kin_smoke,kin,data/raw/kin/kinyarwanda_data.csv.gz,csv.gz,text,domain,source,Split,license,smoke_only,"10,000-record prototype; do not mix synthetic records into final evaluation."
+ibo_new_v1,ibo,../new_data/ibo_corpus.csv.gz,csv.gz,Text,Domain,Source,Split (train/dev),License,candidate_pnc,"Large, provenance-tracked corpus; use only through the stratified selector and frozen-evaluation workflow."
+kin_new_v1,kin,../new_data/kin_corpus.csv.gz,csv.gz,Text,Domain,Source,Split (train/dev),License,candidate_pnc,"Large, provenance-tracked corpus; use only through the stratified selector and frozen-evaluation workflow."
+pcm_new_v1,pcm,../new_data/pcm_corpus.csv.gz,csv.gz,Text,Domain,Source,Split (train/dev),License,candidate_pnc,"Large, provenance-tracked corpus; use only through the stratified selector and frozen-evaluation workflow."
+swa_new_v1,swa,../new_data/swa_corpus.csv.gz,csv.gz,Text,Domain,Source,Split (train/dev),License,candidate_pnc,"Large, provenance-tracked corpus; use only through the stratified selector and frozen-evaluation workflow."
+yor_new_v1,yor,../new_data/yor_corpus.csv.gz,csv.gz,Text,Domain,Source,Split (train/dev),License,candidate_pnc,"Large, provenance-tracked corpus; use only through the stratified selector and frozen-evaluation workflow."

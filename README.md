@@ -97,6 +97,25 @@ python scripts\audit_token_lengths.py `
 
 A larger, provenance-tracked corpus of 11.8 million rows is available locally for the next experiment. The frozen-evaluation expansion workflow will add more high-confidence training data while preserving the current development and test sets. See [RUN_NEW_DATA_EXPANSION.md](RUN_NEW_DATA_EXPANSION.md).
 
+## Auditing punctuation coverage and ASR chunk boundaries
+
+Before adding new training data or claiming streaming-ASR behaviour, audit the labels already available in the frozen corpus:
+
+```powershell
+python scripts\audit_punctuation_inventory.py `
+  --data-dir data\processed\supervised_expanded_v1
+
+python scripts\audit_chunk_start_capitalization.py `
+  --config configs\afroxlmr_small_expanded_v1_8epoch.json `
+  --data-dir data\processed\supervised_expanded_v1
+```
+
+The punctuation inventory reports each label's count and percentage by language and split, in JSON, CSV, and Markdown. This distinguishes a label that the model missed from a label that was absent or too rare to learn.
+
+The capitalization audit reports the ground-truth case labels at token-aware chunk starts. A chunk can start in the middle of a sentence, so the model is exposed to `LOWER` labels at some chunk starts rather than being trained to capitalize every first position.
+
+The current demo restores one input of up to 96 words and does not yet preserve context between separate ASR packets. For streaming ASR, retain a rolling context window and delay commitment of the final few words; do not restore each packet independently or force-capitalize its first word.
+
 ## Limitations
 
 - This result demonstrates multilingual **text restoration**, not real-ASR robustness.

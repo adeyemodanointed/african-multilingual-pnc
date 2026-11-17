@@ -156,8 +156,9 @@ def prepare_record(record: dict[str, str], min_words: int = 4, max_words: int = 
 
 
 def split_for_record(record: dict[str, object], seed: int = 42) -> str:
-    """Assign a deterministic record-level split when a document ID is unavailable."""
-    key = f"{seed}:{record['language']}:{record['dataset_id']}:{record['id']}".encode("utf-8")
+    """Assign a deterministic document-level split when document metadata exists."""
+    grouping_key = str(record.get("document_id") or record["id"])
+    key = f"{seed}:{record['language']}:{record['dataset_id']}:{grouping_key}".encode("utf-8")
     value = int.from_bytes(hashlib.sha256(key).digest()[:8], byteorder="big") / 2**64
     if value < 0.8:
         return "train"

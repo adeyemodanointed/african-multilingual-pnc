@@ -86,6 +86,8 @@ def records_for_source(source: CorpusSource, root: Path) -> Iterator[dict[str, s
             "license": _value(row, source.license_field),
             "review_status": _value(row, "review_status") or "unknown",
             "dataset_id": source.dataset_id,
+            "document_id": _value(row, "Document_ID") or _value(row, "document_id"),
+            "text_hash": _value(row, "Text_SHA1") or _value(row, "text_hash"),
         }
 
 
