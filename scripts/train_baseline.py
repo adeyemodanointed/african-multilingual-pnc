@@ -145,6 +145,18 @@ def main() -> None:
     parser.add_argument("--data-dir", type=Path, default=Path("data/processed/supervised"))
     parser.add_argument("--output-dir", type=Path, default=Path("outputs/afroxlmr_small_baseline"))
     parser.add_argument("--epochs", type=int, default=None)
+    parser.add_argument(
+        "--early-stopping-patience",
+        type=int,
+        default=None,
+        help="Stop after this many consecutive epochs without a dev-set improvement. Disabled by default.",
+    )
+    parser.add_argument(
+        "--early-stopping-min-delta",
+        type=float,
+        default=0.0,
+        help="Minimum dev-score increase required to reset early stopping.",
+    )
     args = parser.parse_args()
     config = json.loads(args.config.read_text(encoding="utf-8"))
     training = config["training"]
@@ -192,6 +204,7 @@ def main() -> None:
     args.output_dir.mkdir(parents=True, exist_ok=True)
     history = []
     best_score = -1.0
+    epochs_without_improvement = 0
     optimizer.zero_grad(set_to_none=True)
     for epoch in range(1, epochs + 1):
         model.train()
@@ -233,16 +246,32 @@ def main() -> None:
         history.append(result)
         score = dev["punctuation"]["macro_f1_non_o"]
         print(json.dumps(result))
-        if score > best_score:
+        if score > best_score + args.early_stopping_min_delta:
             best_score = score
+            epochs_without_improvement = 0
             torch.save({"model_state": model.state_dict(), "config": config}, args.output_dir / "best.pt")
+        else:
+            epochs_without_improvement += 1
+            if (
+                args.early_stopping_patience is not None
+                and epochs_without_improvement >= args.early_stopping_patience
+            ):
+                print(
+                    "Early stopping after "
+                    f"{epochs_without_improvement} epoch(s) without dev punctuation improvement.",
+                    flush=True,
+                )
+                break
     checkpoint = torch.load(args.output_dir / "best.pt", map_location=device, weights_only=True)
     model.load_state_dict(checkpoint["model_state"])
     metrics = {
         "config": config,
         "run": {
-            "effective_epochs": epochs,
+            "requested_epochs": epochs,
+            "completed_epochs": len(history),
             "epochs_override": args.epochs,
+            "early_stopping_patience": args.early_stopping_patience,
+            "early_stopping_min_delta": args.early_stopping_min_delta,
             "checkpoint_selection_metric": "punctuation.macro_f1_non_o",
         },
         "device": str(device),
