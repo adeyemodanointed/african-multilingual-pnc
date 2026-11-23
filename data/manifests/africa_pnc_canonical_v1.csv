@@ -1,0 +1,6 @@
+dataset_id,language,path,format,text_field,domain_field,source_field,split_field,license_field,role,notes
+africa_ibo_v1,ibo,../new_data/africa_pnc_canonical/ibo_all_domains.csv.gz,csv.gz,text,domain,source,,licence,candidate_pnc,"Canonical all-domain Africa PnC export; excludes duplicate shards and text-only exports."
+africa_kin_v1,kin,../new_data/africa_pnc_canonical/kin_all_domains.csv.gz,csv.gz,text,domain,source,,licence,candidate_pnc,"Canonical all-domain Africa PnC export; excludes duplicate shards and text-only exports."
+africa_pcm_v1,pcm,../new_data/africa_pnc_canonical/pcm_all_domains.csv.gz,csv.gz,text,domain,source,,licence,candidate_pnc,"Canonical all-domain Africa PnC export; excludes duplicate shards and text-only exports."
+africa_swa_v1,swa,../new_data/africa_pnc_canonical/swa_all_domains.csv.gz,csv.gz,text,domain,source,,licence,candidate_pnc,"Canonical all-domain Africa PnC export; excludes duplicate shards and text-only exports."
+africa_yor_v1,yor,../new_data/africa_pnc_canonical/yor_all_domains.csv.gz,csv.gz,text,domain,source,,licence,candidate_pnc,"Canonical all-domain Africa PnC export; excludes duplicate shards and text-only exports."

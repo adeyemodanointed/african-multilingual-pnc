@@ -157,14 +157,18 @@ def main() -> None:
     case_to_id = {label: index for index, label in enumerate(case_labels)}
     raw_splits = {split: read_jsonl(args.data_dir / f"{split}.jsonl") for split in ("train", "dev", "test")}
     tokenizer = AutoTokenizer.from_pretrained(config["model_name"], use_fast=True, token=False)
-    chunks = {
-        split: [
-            chunk
-            for record in records
-            for chunk in chunk_record_to_token_limit(record, tokenizer, config["max_length"])
-        ]
-        for split, records in raw_splits.items()
-    }
+    chunks = {}
+    for split, records in raw_splits.items():
+        split_chunks = []
+        for record in tqdm(
+            records,
+            desc=f"Chunking {split}",
+            unit="record",
+            dynamic_ncols=True,
+        ):
+            split_chunks.extend(chunk_record_to_token_limit(record, tokenizer, config["max_length"]))
+        chunks[split] = split_chunks
+        print(f"Prepared {len(split_chunks):,} token-safe {split} chunks.", flush=True)
     collate = make_collate_fn(tokenizer, punct_to_id, case_to_id, config["max_length"])
     language_counts = Counter(item["language"] for item in chunks["train"])
     sample_weights = [1 / language_counts[item["language"]] for item in chunks["train"]]

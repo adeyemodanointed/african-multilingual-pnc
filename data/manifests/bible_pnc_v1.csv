@@ -1,0 +1,5 @@
+dataset_id,language,path,format,text_field,domain_field,source_field,split_field,license_field,role,notes
+bible_ibo_v1,ibo,../new_data/africa_pnc_canonical/bible_ibo.jsonl,jsonl,text,book,source,,,candidate_pnc,"Bible verse export; one JSONL representation only."
+bible_pcm_v1,pcm,../new_data/africa_pnc_canonical/bible_pcm.jsonl,jsonl,text,book,source,,,candidate_pnc,"Bible verse export; one JSONL representation only."
+bible_swa_v1,swa,../new_data/africa_pnc_canonical/bible_swa.jsonl,jsonl,text,book,source,,,candidate_pnc,"Bible verse export; one JSONL representation only."
+bible_yor_v1,yor,../new_data/africa_pnc_canonical/bible_yor.jsonl,jsonl,text,book,source,,,candidate_pnc,"Bible verse export; one JSONL representation only."

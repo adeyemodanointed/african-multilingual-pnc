@@ -1,0 +1,12 @@
+{
+  "seed": 42,
+  "min_words": 4,
+  "max_words": 160,
+  "targets": {
+    "ibo": {"rare": 7500, "colon": 5000, "comma": 20000, "other": 17500},
+    "kin": {"rare": 7500, "colon": 5000, "comma": 20000, "other": 17500},
+    "pcm": {"rare": 3000, "colon": 2000, "comma": 8000, "other": 7000},
+    "swa": {"rare": 7500, "colon": 5000, "comma": 20000, "other": 17500},
+    "yor": {"rare": 7500, "colon": 5000, "comma": 20000, "other": 17500}
+  }
+}
